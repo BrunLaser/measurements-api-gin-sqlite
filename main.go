@@ -2,23 +2,31 @@ package main
 
 import (
 	db "Go-Check24/database"
-	"Go-Check24/server"
-	"net/http"
+	"Go-Check24/handlers"
+	"Go-Check24/router"
+	"fmt"
+	"log"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	database := db.Database{}
-	database.Open()
-	defer database.Close()
-	//+++++++++++++++++++++++++++++++++++++++++++
-	//+++++++++++++++++++++++++++++++++++++++++++
-	//BAREBONE SERVER
+	measurementDB, err := db.InitDB()
+	if err != nil {
+		//no sense continuing if can't open DB
+		log.Fatal("Database connection failed:", err)
+	}
+	defer measurementDB.Close()
 
-	http.HandleFunc("/measurement", func(w http.ResponseWriter, r *http.Request) {
-		server.Measurement(w, r, database)
-	}) // closure on database
-	//fmt.Println("Server is running on http://localhost:8080")
-	//log.Fatal(http.ListenAndServe(":8080", nil)) //here we set up the server
+	measurementHandler := handlers.NewHandler(measurementDB)
+	r := gin.Default()
+
+	router.SetupRoutes(r, measurementHandler)
+
+	fmt.Println("Server is running on http://localhost:8080")
+	err = r.Run(":8080")
+	if err != nil {
+		measurementDB.Close()             // Ensure proper cleanup
+		log.Fatal("Server failed: ", err) // Exit the program
+	}
 }

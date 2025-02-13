@@ -20,17 +20,16 @@ func measurementPOST(w http.ResponseWriter, r *http.Request, db database.Databas
 		http.Error(w, "Kein JSON Header", http.StatusBadRequest)
 		return
 	}
-	db.CreateBasicTable()
+	db.CreateBasicTable() //Creates a table IF NOT EXIST
 	newM := &database.Measurement{}
 
 	if err := json.NewDecoder(r.Body).Decode(newM); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	db.InsertPoint(*newM)
-
-	//location header
-	location := fmt.Sprintf("/messpunkte/%d", newM.ID)
+	db.InsertPoint(newM)
+	//location header -> need to change if trying to get single points of database
+	location := fmt.Sprintf("/messpunkte/%d", newM.ID) //The ID is set to the actual ID in the database
 	w.Header().Set("Location", location)
 	//Anwort senden
 	w.Header().Set("Content-Type", "application/json")
@@ -40,6 +39,7 @@ func measurementPOST(w http.ResponseWriter, r *http.Request, db database.Databas
 
 func Measurement(w http.ResponseWriter, r *http.Request, db database.Database) {
 	switch r.Method {
+
 	case http.MethodGet:
 		measurementGET(w, db)
 	case http.MethodPost:
