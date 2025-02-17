@@ -20,7 +20,7 @@ func measurementPOST(w http.ResponseWriter, r *http.Request, db database.Databas
 		http.Error(w, "Kein JSON Header", http.StatusBadRequest)
 		return
 	}
-	db.CreateBasicTable() //Creates a table IF NOT EXIST
+	//db.CreateBasicTable() //Creates a table IF NOT EXIST
 	newM := &database.Measurement{}
 
 	if err := json.NewDecoder(r.Body).Decode(newM); err != nil {
