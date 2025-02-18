@@ -4,7 +4,7 @@ package database
 import (
 	"fmt"
 	"log"
-	"reflect"
+	//"reflect"
 )
 
 func (d *Database) InsertMeasurement(m *Measurement) error {
@@ -73,30 +73,8 @@ func (d *Database) DeleteMeasurement(id int) error {
 	return nil
 }
 
-// this should fix the problem with updating not supported types, but not finished
-func (d *Database) measurementToMap(updateData Measurement) map[string]any {
-	var updateDataMap map[string]any
-	val := reflect.ValueOf(updateData)
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		if !val.IsZero() {
-			// Get the field name
-			fieldName := val.Type().Field(i).Name
-			// Add to the map
-			updateDataMap[fieldName] = field.Interface()
-		}
-	}
-	return updateDataMap
-}
-
-/*
-curl -X PUT http://localhost:8080/measurement/1 \
-     -H "Content-Type: application/json" \
-     -d '{"unit": "volt"}'
-*/
-
 func (d *Database) UpdateMeasurement(id int, updateData map[string]any) error {
-	//should check with types but not now
+	//should check if correct types are passed in json request
 
 	// Build SQL query dynamically
 	query := "UPDATE measurements SET "
@@ -129,3 +107,19 @@ func (d *Database) UpdateMeasurement(id int, updateData map[string]any) error {
 
 	return nil
 }
+
+// this should fix the problem with updating not supported types, but not finished
+/*func (d *Database) measurementToMap(updateData Measurement) map[string]any {
+	var updateDataMap map[string]any
+	val := reflect.ValueOf(updateData)
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		if !val.IsZero() {
+			// Get the field name
+			fieldName := val.Type().Field(i).Name
+			// Add to the map
+			updateDataMap[fieldName] = field.Interface()
+		}
+	}
+	return updateDataMap
+}*/

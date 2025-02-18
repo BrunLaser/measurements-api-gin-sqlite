@@ -23,7 +23,7 @@ curl -X POST http://localhost:8080/measurements
 	 -d '{"sensor_id": 1, "value": 23.45, "unit": "Temp"}'
 */
 
-func (h *Handler) MeasurementPost(c *gin.Context) {
+func (h *Handler) HandleMeasurementPost(c *gin.Context) {
 	//check for json header (not need as shouldbindjson should reject)
 	/*if c.ContentType() != "application/json" {
 	    c.JSON(http.StatusBadRequest, gin.H{"error": "Kein JSON Header"})
@@ -49,7 +49,7 @@ func (h *Handler) MeasurementPost(c *gin.Context) {
 	})
 }
 
-func (h *Handler) MeasurementGetAll(c *gin.Context) {
+func (h *Handler) HandleMeasurementGetAll(c *gin.Context) {
 	//w.Header().Set("Content-Type", "application/json") //gin does the header when I do json stuff
 	measurements, err := h.db.GetAllMeasurements()
 	if err != nil {
@@ -59,7 +59,7 @@ func (h *Handler) MeasurementGetAll(c *gin.Context) {
 	c.JSON(http.StatusOK, measurements) //write json data back
 }
 
-func (h *Handler) MeasurementGetById(c *gin.Context) {
+func (h *Handler) HandleMeasurementGetById(c *gin.Context) {
 	id, err := util.GetParamInt(c, "id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -73,7 +73,7 @@ func (h *Handler) MeasurementGetById(c *gin.Context) {
 	c.JSON(http.StatusOK, point)
 }
 
-func (h *Handler) MeasurementDelete(c *gin.Context) {
+func (h *Handler) HandleMeasurementDelete(c *gin.Context) {
 	id, err := util.GetParamInt(c, "id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -93,7 +93,7 @@ curl -X PUT http://localhost:8080/measurements/1 \
      -d '{"unit": "volt"}'
 */
 
-func (h *Handler) MeasurementUpdate(c *gin.Context) {
+func (h *Handler) HandleMeasurementUpdate(c *gin.Context) {
 	id, err := util.GetParamInt(c, "id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -119,4 +119,21 @@ func (h *Handler) MeasurementUpdate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully updated measurement"})
+}
+
+func (h *Handler) HandleGetMeasurementsByExperiment(c *gin.Context) {
+	expName := c.Param("exp")
+	if expName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "empty parameter"})
+		return
+	}
+	startTime := c.Query("startTime")
+	endTime := c.Query("endTime")
+	measurements, err := h.db.GetMeasurementsByExperiment(expName, startTime, endTime)
+	if err != nil {
+		//we could check for different errors but now I'm too lazy
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, measurements)
 }

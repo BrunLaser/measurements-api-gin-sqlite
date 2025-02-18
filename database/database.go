@@ -10,20 +10,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type Database struct {
-	dbConn *sql.DB
-}
-
-// Measurement point here bc we dont have that many models
-
-type Measurement struct {
-	ID        int64   `json:"id"`
-	SensorsId int64   `json:"sensor_id"`
-	Value     float64 `json:"value"`
-	Unit      string  `json:"unit"`
-	Timestamp string  `json:"timestamp"`
-}
-
 func (db *Database) withTransaction(fn func(transaction *sql.Tx) error) error {
 	//Initialise connection
 	tx, err := db.dbConn.Begin()
