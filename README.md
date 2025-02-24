@@ -2,6 +2,9 @@
 
 This API, created for Check24 interview preparation, manages measurements linked to experiments and sensors, supporting basic CRUD operations and time range queries.
 
+> **Note**: The `server` folder is from a previous version of the project that did not use Gin and serves no purpose in the current implementation. It can be safely ignored or removed.
+
+
 ## Endpoints
 
 - **GET /measurements**: Retrieve all measurements.
