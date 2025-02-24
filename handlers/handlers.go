@@ -4,7 +4,9 @@ import (
 	"Go-Check24/database"
 	"Go-Check24/util"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,18 +19,7 @@ func NewHandler(db *database.Database) *Handler {
 	return &Handler{db: db}
 }
 
-/*
-curl -X POST http://localhost:8080/measurements
-	 -H "Content-Type: application/json"
-	 -d '{"sensor_id": 1, "value": 23.45, "unit": "Temp"}'
-*/
-
 func (h *Handler) HandleMeasurementPost(c *gin.Context) {
-	//check for json header (not need as shouldbindjson should reject)
-	/*if c.ContentType() != "application/json" {
-	    c.JSON(http.StatusBadRequest, gin.H{"error": "Kein JSON Header"})
-	    return
-	}*/
 	newPoint := &database.Measurement{}
 	//json to struct
 	if err := c.ShouldBindJSON(newPoint); err != nil {
@@ -40,6 +31,7 @@ func (h *Handler) HandleMeasurementPost(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database INSERT error"})
 		return
 	}
+	fmt.Println(*newPoint)
 	location := fmt.Sprintf("/measurements/%d", newPoint.ID) //The ID is set to the actual ID in the database
 	c.Header("Location", location)
 	c.JSON(http.StatusCreated, gin.H{
@@ -87,12 +79,6 @@ func (h *Handler) HandleMeasurementDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("succesfully deleted measurement %v", id)})
 }
 
-/*
-curl -X PUT http://localhost:8080/measurements/1 \
-     -H "Content-Type: application/json" \
-     -d '{"unit": "volt"}'
-*/
-
 func (h *Handler) HandleMeasurementUpdate(c *gin.Context) {
 	id, err := util.GetParamInt(c, "id")
 	if err != nil {
@@ -129,11 +115,25 @@ func (h *Handler) HandleGetMeasurementsByExperiment(c *gin.Context) {
 	}
 	startTime := c.Query("startTime")
 	endTime := c.Query("endTime")
+	fmt.Println(startTime)
+	fmt.Println(endTime)
 	measurements, err := h.db.GetMeasurementsByExperiment(expName, startTime, endTime)
 	if err != nil {
-		//we could check for different errors but now I'm too lazy
+		//we could check for different errors here
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, measurements)
+}
+
+func (h *Handler) HandleMeasurementMinMax(c *gin.Context) {
+	start := time.Now()
+	Measurements, err := h.db.GetMeasurementMinMax()
+	log.Printf("Time to get MinMax: %s", time.Since(start))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	log.Printf("Number of MinMax: %v", len(Measurements))
+	c.JSON(http.StatusOK, Measurements)
 }

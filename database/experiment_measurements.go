@@ -52,6 +52,7 @@ func (d *Database) constructTimeRangeSQL(name, startTime, endTime string) (strin
 		queryDB += " AND measurements.timestamp <= ?"
 	}
 	queryDB += ";"
+	//fmt.Println(queryDB)
 	return queryDB, queryParams, nil
 }
 

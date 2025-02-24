@@ -10,7 +10,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func (db *Database) withTransaction(fn func(transaction *sql.Tx) error) error {
+func (db *Database) WithTransaction(fn func(transaction *sql.Tx) error) error {
 	//Initialise connection
 	tx, err := db.dbConn.Begin()
 	if err != nil {
@@ -43,13 +43,13 @@ func InitDB() (*Database, error) {
 	db := &Database{dbConn: connection}
 
 	//Create tables with transaction
-	err = db.withTransaction(db.createTables)
+	err = db.WithTransaction(db.createTables)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tables: %w", err)
 	}
 
 	//Initialise tables with transaction
-	err = db.withTransaction(db.initTables)
+	err = db.WithTransaction(db.initTables)
 	if err != nil {
 		return nil, fmt.Errorf("error initialising tables: %w", err)
 	}
@@ -114,17 +114,48 @@ func (db *Database) initTables(tx *sql.Tx) error {
 	}
 
 	//create two sensors for each experiment
-	createSensorSQL := `INSERT OR IGNORE INTO sensors (id, experiment_id, sensor_type) 
-						VALUES (?, ?, "elektrisch")`
-	for i := 1; i <= 2; i++ {
-		for j := 1; j <= 2; j++ {
-			_, err := tx.Exec(createSensorSQL, j, i)
-			if err != nil {
-				log.Println("Couldnt create sensor: ", err)
-				return err
-			}
+	sensorStmt, err := tx.Prepare("INSERT OR IGNORE INTO sensors (id, experiment_id, sensor_type) VALUES (?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer sensorStmt.Close()
+
+	sensors := []Sensor{
+		{1, 1, "Barometer"},
+		{2, 1, "Thermometer"},
+		{3, 2, "Barometer"},
+		{4, 2, "Thermometer"},
+	}
+
+	for _, sensor := range sensors {
+		_, err := sensorStmt.Exec(sensor.ID, sensor.ExperimentID, sensor.SensorType)
+		if err != nil {
+			log.Printf("Couldnt create sensor %v: %s", sensor.ID, err)
+			return err
 		}
 	}
+	return nil
+}
+
+func (db *Database) TestInsertionSpeed(amount int) error {
+	start := time.Now()
+	if err := db.BulkInsertRandMeasurementSlow(amount, 1, "insertionSpeedTest"); err != nil {
+		return fmt.Errorf("error slow bulk insert: %w", err)
+	}
+	log.Printf("no tx, no prepared stmt, nr. inserts: %v; time: %s", amount, time.Since(start))
+
+	start = time.Now()
+	err := db.WithTransaction(func(transaction *sql.Tx) error {
+		if err := db.BulkInsertRandMeasurementFast(transaction, amount, 3, "insertionSpeedTest"); err != nil {
+			return fmt.Errorf("error inside fast bulk insert: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error transaction for fast bulk insert: %w", err)
+	}
+
+	log.Printf("tx, prepared stmt, nr. inserts: %v; time: %s", amount, time.Since(start))
 	return nil
 }
 

@@ -2,9 +2,10 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
-	//"reflect"
+	"math/rand/v2"
 )
 
 func (d *Database) InsertMeasurement(m *Measurement) error {
@@ -66,15 +67,23 @@ func (d *Database) GetMeasurementById(queryId int) (*Measurement, error) {
 }
 
 func (d *Database) DeleteMeasurement(id int) error {
-	_, err := d.dbConn.Exec(`DELETE FROM measurements WHERE id = ?;`, id)
+	res, err := d.dbConn.Exec(`DELETE FROM measurements WHERE id = ?;`, id)
 	if err != nil {
 		return fmt.Errorf("error deleting measurement(id=%v): %w", id, err)
+	}
+	//Check if there was actually a delete
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error retrieving rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("measurement(id=%v) not found", id)
 	}
 	return nil
 }
 
 func (d *Database) UpdateMeasurement(id int, updateData map[string]any) error {
-	//should check if correct types are passed in json request
+	//should check here if correct types are passed in json request
 
 	// Build SQL query dynamically
 	query := "UPDATE measurements SET "
@@ -100,12 +109,96 @@ func (d *Database) UpdateMeasurement(id int, updateData map[string]any) error {
 	}
 
 	// Check if the row exists
-	rowsAffected, _ := res.RowsAffected()
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error retrieving rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("record not found")
 	}
 
 	return nil
+}
+
+func (d *Database) BulkInsertRandMeasurementSlow(amount, sensorId int, unit string) error {
+	sqlInsert := `INSERT INTO measurements
+		(sensors_id,
+		value,
+		unit)
+		VALUES (?, ?, ?);`
+	for i := 0; i < amount; i++ {
+		_, err := d.dbConn.Exec(sqlInsert, sensorId, rand.Float64()*100, unit)
+		if err != nil {
+			return fmt.Errorf("error inserting measurement: %w", err)
+		}
+	}
+	return nil
+}
+
+func (d *Database) BulkInsertRandMeasurementFast(tx *sql.Tx, amount, sensorId int, unit string) error {
+	sqlInsert := `INSERT INTO measurements
+	(sensors_id,
+	value,
+	unit)
+	VALUES (?, ?, ?);`
+	sqlStmt, err := tx.Prepare(sqlInsert)
+	if err != nil {
+		return fmt.Errorf("error preparing sql stmt: %w", err)
+	}
+	defer sqlStmt.Close()
+
+	for i := 0; i < amount; i++ {
+		_, err := sqlStmt.Exec(sensorId, rand.Float64()*100, unit)
+		if err != nil {
+			return fmt.Errorf("error inserting measurement: %w", err)
+		}
+	}
+	return nil
+}
+
+func (db *Database) MeasurementRows() (int64, error) {
+	sqlQuery := `SELECT COUNT(*) AS total_rows
+	FROM measurements;`
+
+	var totalRows sql.NullInt64
+	err := db.dbConn.QueryRow(sqlQuery).Scan(&totalRows)
+	if err != nil {
+		return -1, fmt.Errorf("error executing row count query: %w", err)
+	}
+	if !totalRows.Valid {
+		return 0, fmt.Errorf("no rows found")
+	}
+	return int64(totalRows.Int64), nil
+}
+
+func (db *Database) GetMeasurementMinMax() ([]Measurement, error) {
+	//Query could be improved but for now it's good
+	sqlQuery := `SELECT * 
+	FROM measurements
+	WHERE value = (SELECT MAX(value) FROM measurements)
+	OR value = (SELECT MIN(value) FROM measurements);`
+
+	rows, err := db.dbConn.Query(sqlQuery)
+	if err != nil {
+		return nil, fmt.Errorf("error querying min/max: %w", err)
+	}
+	defer rows.Close()
+
+	var MinMaxMeasurements []Measurement
+	for rows.Next() {
+		var m Measurement
+		if err := rows.Scan(&m.ID, &m.SensorsId, &m.Value, &m.Unit, &m.Timestamp); err != nil {
+			return nil, fmt.Errorf("error minmax scanning row: %w", err)
+		}
+		MinMaxMeasurements = append(MinMaxMeasurements, m)
+	}
+
+	// Check for errors from the row iteration
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during row iteration: %w", err)
+	}
+
+	return MinMaxMeasurements, nil
 }
 
 // this should fix the problem with updating not supported types, but not finished

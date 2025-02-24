@@ -5,6 +5,7 @@ import (
 	"Go-Check24/handlers"
 	"Go-Check24/router"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,14 +13,22 @@ import (
 func main() {
 	measurementDB, err := database.InitDB()
 	if err != nil {
-		//no sense continuing if can't open DB
 		log.Fatal("Database connection/creation failed:", err)
 	}
 	defer measurementDB.Close()
 
+	//count all rows
+	start := time.Now()
+	nRows, err := measurementDB.MeasurementRows()
+	if err != nil {
+		log.Printf("error counting rows: %s", err.Error())
+		return
+	}
+	log.Printf("measurement rows: %v; time %s", nRows, time.Since(start))
+
+	//Setup API
 	measurementHandler := handlers.NewHandler(measurementDB)
 	r := gin.Default()
-
 	router.SetupRoutes(r, measurementHandler)
 
 	err = r.Run(":8080")
