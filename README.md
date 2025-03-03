@@ -1,6 +1,6 @@
 # Measurements API
 
-This API, created for an interview preparation, manages measurements linked to experiments and sensors, supporting basic CRUD operations and time range queries. The API is built using the **Gin** web framework and uses **SQLite** as the database.
+This API is a personal project designed to gain experience with Go and databases. It manages measurements linked to experiments and sensors, supporting basic CRUD operations and time range queries. The API is built using the **Gin** web framework and uses **SQLite** as the database.
 
 > **Note**: The `server` folder is from a previous version of the project that did not use Gin and serves no purpose in the current implementation. It can be safely ignored or removed.
 
